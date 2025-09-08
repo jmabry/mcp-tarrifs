@@ -181,3 +181,6 @@ cython_debug/
 
 # Data files and databases
 data/
+
+# MCP configuration (local settings)
+.mcp/

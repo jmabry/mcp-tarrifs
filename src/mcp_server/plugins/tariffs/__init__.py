@@ -172,7 +172,13 @@ class TariffsPlugin(DatasetPlugin):
         
         if product_code:
             conditions.append(f"CAST(hts8 AS VARCHAR) LIKE '{product_code}%'")
-        elif product_search:
+        elif product_search is not None:
+            # Check for empty string
+            if not product_search.strip():
+                return [types.TextContent(
+                    type="text",
+                    text="❌ product_search cannot be empty"
+                )]
             conditions.append(f"lower(brief_description) LIKE '%{product_search.lower()}%'")
         else:
             return [types.TextContent(
@@ -221,6 +227,17 @@ class TariffsPlugin(DatasetPlugin):
             """
             
             result = await db_client.execute_query(query)
+            
+            # Check if result is empty or indicates no data found
+            if (not result or 
+                "no rows" in result.lower() or 
+                "empty" in result.lower() or 
+                "no results returned" in result.lower() or
+                result.strip() == ""):
+                return [types.TextContent(
+                    type="text",
+                    text=f"❌ No tariff data found for the specified criteria in {target_table}"
+                )]
             
             return [types.TextContent(
                 type="text",
@@ -295,6 +312,17 @@ class TariffsPlugin(DatasetPlugin):
             query = " UNION ALL ".join(union_queries) + " ORDER BY year DESC"
             
             result = await db_client.execute_query(query)
+            
+            # Check if result is empty or indicates no data found
+            if (not result or 
+                "no rows" in result.lower() or 
+                "empty" in result.lower() or 
+                "no results returned" in result.lower() or
+                result.strip() == ""):
+                return [types.TextContent(
+                    type="text",
+                    text=f"❌ No tariff data found for product code {product_code} in the specified years"
+                )]
             
             return [types.TextContent(
                 type="text",

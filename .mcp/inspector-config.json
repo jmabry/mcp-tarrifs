@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "tariffs": {
+      "command": "uv",
+      "args": ["run", "python", "scripts/mcp_server_launcher.py"],
+      "env": {}
+    }
+  }
+}

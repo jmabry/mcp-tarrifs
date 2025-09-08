@@ -1,6 +1,14 @@
 MIT License
 
-Copyright (c) 2024 MotherDuck
+Originally forked from: https://github.com/motherduckdb/mcp-server-motherduck (MIT License)
+
+Copyright (c) 2025 jmabry and contributors
+
+This project began as a fork of an early MotherDuck MCP server prototype and has
+subsequently diverged substantially (unified plugin system, USITC tariff data
+ingestion, enhanced safety/multi-dataset architecture). The original upstream
+code was MIT licensed; substantial refactors and new functionality are
+copyright (c) the current maintainers under the same MIT terms below.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
