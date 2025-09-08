@@ -1,9 +1,23 @@
 [project]
 name = "mcp-server-unified"
 version = "1.0.0"
-description = "Unified MCP server for DuckDB/MotherDuck with modular dataset support"
+# NOTE: Originally forked from an early MotherDuck MCP server implementation (MIT).
+# This project has since significantly diverged: unified plugin architecture, USITC
+# tariff data ingestion, enhanced safety, and general-purpose dataset tooling.
+description = "Unified MCP server (diverged fork) with DuckDB/MotherDuck support and specialized USITC tariff data tools"
 readme = "README.md"
 requires-python = ">=3.10"
+license = { file = "LICENSE" }
+keywords = ["mcp", "model context protocol", "duckdb", "motherduck", "tariff", "usitc", "data", "sql", "plugin"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Topic :: Database",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
 dependencies = [
  "duckdb>=0.9.0",
  "tabulate>=0.9.0",
@@ -35,6 +49,14 @@ test = [
 name = "jmabry"
 email = "your-email@example.com"
 
+
+
+[project.urls]
+Homepage = "https://github.com/jmabry/mcp-tarrifs"
+Source = "https://github.com/jmabry/mcp-tarrifs"
+Issues = "https://github.com/jmabry/mcp-tarrifs/issues"
+OriginalUpstream = "https://github.com/motherduckdb/mcp-server-motherduck"
+
 [build-system]
 requires = [ "hatchling",]
 build-backend = "hatchling.build"
@@ -59,6 +81,7 @@ addopts = [
 asyncio_mode = "auto"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests (end-to-end workflows)",
 ]
 
 [tool.coverage.run]
