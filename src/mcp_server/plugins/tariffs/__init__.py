@@ -1,4 +1,5 @@
 import re
+import json
 from typing import List
 import mcp.types as types
 from .. import DatasetPlugin
@@ -167,19 +168,37 @@ class TariffsPlugin(DatasetPlugin):
         country = arguments.get("country")
         year = arguments.get("year")
         
-        # Build query based on available parameters
+        # Build query based on available parameters with input validation
         conditions = []
+        params = []
         
         if product_code:
-            conditions.append(f"CAST(hts8 AS VARCHAR) LIKE '{product_code}%'")
+            # Validate HTS code format (digits and dots, 2-12 characters)
+            if not re.match(r'^[0-9\.]{2,12}$', product_code):
+                return [types.TextContent(
+                    type="text",
+                    text="❌ Invalid product_code format. Use digits and dots only (e.g., '0101.21.00')"
+                )]
+            conditions.append("CAST(hts8 AS VARCHAR) LIKE ?")
+            params.append(product_code + '%')
         elif product_search is not None:
             # Check for empty string
-            if not product_search.strip():
+            search_term = product_search.strip()
+            if not search_term:
                 return [types.TextContent(
                     type="text",
                     text="❌ product_search cannot be empty"
                 )]
-            conditions.append(f"lower(brief_description) LIKE '%{product_search.lower()}%'")
+            # Validate length to prevent excessively long searches
+            if len(search_term) > 100:
+                return [types.TextContent(
+                    type="text",
+                    text="❌ product_search too long (max 100 characters)"
+                )]
+            # Escape SQL LIKE wildcards for literal search
+            escaped_term = search_term.replace('%', '\\%').replace('_', '\\_').replace("'", "''")
+            conditions.append("lower(brief_description) LIKE ? ESCAPE '\\'")
+            params.append(f'%{escaped_term.lower()}%')
         else:
             return [types.TextContent(
                 type="text",
@@ -218,30 +237,45 @@ class TariffsPlugin(DatasetPlugin):
                 # Use most recent table (assume reverse sorted)
                 target_table = sorted(tariff_tables)[-1]
             
-            # Build and execute query
+            # Validate table name to prevent injection (whitelist approach)
+            if not self.is_dataset_table(target_table):
+                return [types.TextContent(
+                    type="text",
+                    text="❌ Invalid table selection"
+                )]
+            
+            # Build and execute parameterized query
             query = f"""
             SELECT hts8, brief_description, mfn_text_rate
             FROM {target_table}
             WHERE {where_clause}
+            ORDER BY hts8
             LIMIT 20
             """
             
-            result = await db_client.execute_query(query)
+            # Execute query and get structured data using DuckDB relations and DataFrame
+            json_result = await db_client.execute_query_as_json(query, params)
             
-            # Check if result is empty or indicates no data found
-            if (not result or 
-                "no rows" in result.lower() or 
-                "empty" in result.lower() or 
-                "no results returned" in result.lower() or
-                result.strip() == ""):
+            # Parse to check if we got data
+            result_data = json.loads(json_result)
+            if result_data["count"] == 0:
                 return [types.TextContent(
                     type="text",
                     text=f"❌ No tariff data found for the specified criteria in {target_table}"
                 )]
             
-            return [types.TextContent(
-                type="text",
-                text=f"🎯 Tariff rates from {target_table}:\n\n{result}"
+            # Return structured JSON data
+            return [types.EmbeddedResource(
+                type="resource",
+                resource=types.TextResourceContents(
+                    uri="data://tariff-rates",
+                    mimeType="application/json",
+                    text=json_result
+                ),
+                annotations=types.Annotations(
+                    audience=["user"],
+                    priority=1.0
+                )
             )]
             
         except Exception as e:
@@ -262,6 +296,13 @@ class TariffsPlugin(DatasetPlugin):
                 text="❌ product_code is required for comparison"
             )]
         
+        # Validate HTS code format
+        if not re.match(r'^[0-9\.]{2,12}$', product_code):
+            return [types.TextContent(
+                type="text",
+                text="❌ Invalid product_code format. Use digits and dots only (e.g., '0101.21.00')"
+            )]
+        
         try:
             tables = await db_client.list_tables()
             tariff_tables = [t for t in tables if self.is_dataset_table(t)]
@@ -276,8 +317,9 @@ class TariffsPlugin(DatasetPlugin):
                         years.append(int(year))
                 years = sorted(set(years))[-5:]  # Last 5 years
             
-            # Build comparison query
+            # Build comparison query with parameterized queries
             union_queries = []
+            all_params = []
             
             for year in years:
                 # Find table for this year
@@ -289,19 +331,17 @@ class TariffsPlugin(DatasetPlugin):
                         break
                 
                 if year_table:
-                    conditions = [f"CAST(hts8 AS VARCHAR) = '{product_code}'"]
-                    if countries:
-                        # Country filtering not implemented - remove for now
-                        # TODO: Implement using country-specific rate columns
-                        pass
+                    # Validate table name
+                    if not self.is_dataset_table(year_table):
+                        continue
                     
-                    where_clause = " AND ".join(conditions)
-                    
+                    # Use parameterized query for product code
                     union_queries.append(f"""
                     SELECT '{year}' as year, CAST(hts8 AS VARCHAR) as hts8, brief_description, mfn_text_rate
                     FROM {year_table}
-                    WHERE {where_clause}
+                    WHERE CAST(hts8 AS VARCHAR) = ?
                     """)
+                    all_params.append(product_code)
             
             if not union_queries:
                 return [types.TextContent(
@@ -311,22 +351,29 @@ class TariffsPlugin(DatasetPlugin):
             
             query = " UNION ALL ".join(union_queries) + " ORDER BY year DESC"
             
-            result = await db_client.execute_query(query)
+            # Execute query and get structured data using DuckDB relations and DataFrame
+            json_result = await db_client.execute_query_as_json(query, all_params)
             
-            # Check if result is empty or indicates no data found
-            if (not result or 
-                "no rows" in result.lower() or 
-                "empty" in result.lower() or 
-                "no results returned" in result.lower() or
-                result.strip() == ""):
+            # Parse to check if we got data
+            result_data = json.loads(json_result)
+            if result_data["count"] == 0:
                 return [types.TextContent(
                     type="text",
                     text=f"❌ No tariff data found for product code {product_code} in the specified years"
                 )]
             
-            return [types.TextContent(
-                type="text",
-                text=f"📊 Tariff rate comparison for {product_code}:\n\n{result}"
+            # Return structured JSON data
+            return [types.EmbeddedResource(
+                type="resource",
+                resource=types.TextResourceContents(
+                    uri="data://tariff-comparison",
+                    mimeType="application/json",
+                    text=json_result
+                ),
+                annotations=types.Annotations(
+                    audience=["user"],
+                    priority=1.0
+                )
             )]
             
         except Exception as e:

@@ -3,6 +3,7 @@ import logging
 import time
 import re
 import os
+import json
 from typing import Dict, List, Optional, Any, Literal, Tuple
 from pathlib import Path
 from tabulate import tabulate
@@ -168,6 +169,43 @@ class UniversalDatabaseClient:
             logger.error(f"Failed to initialize connection: {e}")
             return None
     
+    async def execute_query_as_json(self, query: str, params: List[Any] = None) -> str:
+        """Execute SQL query and return results as JSON using DuckDB's native API"""
+        if not self._connection:
+            await self.connect()
+        
+        try:
+            start_time = time.time()
+            
+            # Use sql() to get a relation object
+            if params:
+                relation = self._connection.sql(query, params=params)
+            else:
+                relation = self._connection.sql(query)
+            
+            # Get data using DuckDB's native methods
+            data = relation.fetchall()
+            columns = relation.columns
+            execution_time = time.time() - start_time
+            
+            # Convert to records format
+            records = [dict(zip(columns, row)) for row in data]
+            
+            result = {
+                "data": records,
+                "columns": columns,
+                "count": len(data),
+                "execution_time": round(execution_time, 3),
+                "query": query
+            }
+            
+            return json.dumps(result, indent=2, default=str)
+            
+        except Exception as e:
+            logger.error(f"Query execution failed: {e}")
+            raise Exception(f"Query failed: {str(e)}")
+
+   
     async def execute_query(self, query: str, include_metadata: bool = False) -> str:
         """Execute SQL query and return formatted results with optional metadata"""
         if not self._connection:

@@ -345,7 +345,7 @@ class MCPUnifiedServer:
         
         # Execute query with metadata if requested
         try:
-            result = await self.db_client.execute_query(modified_sql, include_metadata=explain)
+            result = await self.db_client.execute_query(modified_sql, params=None, include_metadata=explain)
             
             response_text = f"✅ Query executed successfully:\n\n{result}"
             
