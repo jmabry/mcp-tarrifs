@@ -171,7 +171,7 @@ class TariffsPlugin(DatasetPlugin):
         conditions = []
         
         if product_code:
-            conditions.append(f"hts8 LIKE '{product_code}%'")
+            conditions.append(f"CAST(hts8 AS VARCHAR) LIKE '{product_code}%'")
         elif product_search:
             conditions.append(f"lower(brief_description) LIKE '%{product_search.lower()}%'")
         else:
@@ -181,7 +181,9 @@ class TariffsPlugin(DatasetPlugin):
             )]
         
         if country:
-            conditions.append(f"lower(country) LIKE '%{country.lower()}%'")
+            # Note: Country filtering not implemented yet - tables use country-specific rate columns
+            # TODO: Implement country filtering using nafta_canada_ind, singapore_indicator, etc.
+            pass
         
         where_clause = " AND ".join(conditions)
         
@@ -270,15 +272,16 @@ class TariffsPlugin(DatasetPlugin):
                         break
                 
                 if year_table:
-                    conditions = [f"hts8 = '{product_code}'"]
+                    conditions = [f"CAST(hts8 AS VARCHAR) = '{product_code}'"]
                     if countries:
-                        country_conditions = [f"lower(country) LIKE '%{country.lower()}%'" for country in countries]
-                        conditions.append(f"({' OR '.join(country_conditions)})")
+                        # Country filtering not implemented - remove for now
+                        # TODO: Implement using country-specific rate columns
+                        pass
                     
                     where_clause = " AND ".join(conditions)
                     
                     union_queries.append(f"""
-                    SELECT '{year}' as year, hts8, brief_description, mfn_text_rate, country
+                    SELECT '{year}' as year, CAST(hts8 AS VARCHAR) as hts8, brief_description, mfn_text_rate
                     FROM {year_table}
                     WHERE {where_clause}
                     """)

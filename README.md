@@ -321,18 +321,44 @@ class TariffsPlugin(DatasetPlugin):
         # Handle tool execution
 ```
 
-### Running Tests
+### Testing
+
+The project includes a comprehensive test suite covering database operations, server functionality, tariff analysis tools, and end-to-end workflows.
+
+#### Quick Test Setup
 
 ```bash
-# Test server functionality (requires database)
-uv run python -m pytest tests/
+# Install test dependencies
+uv add --dev pytest pytest-asyncio pytest-cov
 
-# Test basic server startup
+# Build database (required for most tests)
 python scripts/mcp_server_launcher.py --build-only
 
-# Test with development server
-python start_enhanced_server.py
+# Run all tests
+pytest
+
+# Run tests with coverage
+pytest --cov=src --cov-report=html
 ```
+
+#### Test Categories
+
+- **Database Tests**: Connectivity, schema validation, data operations
+- **Server Tests**: MCP server initialization, plugin loading, configuration
+- **Tariff Plugin Tests**: Product search, HTS code lookup, rate comparisons
+- **End-to-End Tests**: Complete workflows from server startup to analysis
+- **Infrastructure Tests**: Build scripts, project structure validation
+
+#### Key Test Flows
+
+- ✅ Database connectivity and tariff data validation (11 years, 155K+ rows)
+- ✅ Server startup and plugin loading
+- ✅ Product search by description ("automobiles", "steel", "beef")  
+- ✅ HTS code lookup and validation
+- ✅ Multi-year tariff rate comparisons
+- ✅ Error handling and recovery workflows
+
+See [`tests/README.md`](tests/README.md) for detailed testing documentation, troubleshooting, and advanced usage.
 
 ### Rebuilding Database
 
