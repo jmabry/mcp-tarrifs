@@ -1,407 +1,407 @@
-# MotherDuck's DuckDB MCP Server
+# USITC Tariff Data MCP Server
 
-An MCP server implementation that interacts with DuckDB and MotherDuck databases, providing SQL analytics capabilities to AI Assistants and IDEs.
+A comprehensive MCP (Model Context Protocol) server implementation for accessing and analyzing United States International Trade Commission (USITC) tariff data. This project provides both automated data collection and powerful MCP server capabilities for querying tariff information through AI assistants and IDEs.
 
-[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/install-mcp?name=DuckDB&config=eyJjb21tYW5kIjoidXZ4IG1jcC1zZXJ2ZXItbW90aGVyZHVjayAtLWRiLXBhdGggbWQ6IiwiZW52Ijp7Im1vdGhlcmR1Y2tfdG9rZW4iOiIifX0%3D)
+## 🎯 Overview
 
-## Resources
-- [Close the Loop: Faster Data Pipelines with MCP, DuckDB & AI (Blogpost)](https://motherduck.com/blog/faster-data-pipelines-with-mcp-duckdb-ai/)
-- [Faster Data Pipelines development with MCP and DuckDB (YouTube)](https://www.youtube.com/watch?v=yG1mv8ZRxcU)
+This project combines two powerful components:
 
-## Features
+1. **USITC Tariff Data Downloader**: Automatically downloads, extracts, and loads 11 years of US tariff data into a DuckDB database
+2. **Unified MCP Server**: Provides specialized tariff analysis tools and SQL capabilities through MCP clients like Claude, Cursor, and VS Code
 
-- **Hybrid execution**: query data from local DuckDB or/and cloud-based MotherDuck databases
-- **Cloud storage integration**: access data stored in Amazon S3 or other cloud storage thanks to MotherDuck's integrations
-- **Data sharing**: create and share databases
-- **SQL analytics**: use DuckDB's SQL dialect to query any size of data directly from your AI Assistant or IDE
-- **Serverless architecture**: run analytics without needing to configure instances or clusters
+## ✨ Features
 
-## Components
+- **Automated Data Collection**: Downloads and processes 11 years of USITC tariff data (2015-2025)
+- **DuckDB Integration**: High-performance analytics database with 142K+ rows of tariff information
+- **Unified MCP Server**: Query tariff data through AI assistants using natural language
+- **Specialized Tariff Tools**: Purpose-built tools for tariff analysis, comparison, and HTS code lookup
+- **Plugin Architecture**: Modular design with tariff-specific functionality
+- **Local & Cloud Support**: Works with local DuckDB files or MotherDuck cloud databases
 
-### Prompts
+## 📁 Project Structure
 
-The server provides one prompt:
+```
+mcp-tarrifs/
+├── scripts/                    # Server launcher and utilities
+│   └── mcp_server_launcher.py  # MCP-compatible server launcher
+├── src/
+│   ├── mcp_server/             # Unified MCP server implementation
+│   │   ├── core/               # Core server components and configuration
+│   │   ├── plugins/            # Dataset-specific plugins
+│   │   │   └── tariffs/        # Tariff-specific tools and analysis
+│   │   ├── server.py           # Main server implementation
+│   │   └── __main__.py         # Entry point for MCP server
+│   └── tariffs_db/             # Database build tools for tariff data
+├── data/                       # Downloaded and processed tariff data
+│   └── usitc_data/
+├── logs/                       # Query and request logs
+├── start_enhanced_server.py    # Legacy server starter (for development)
+├── pyproject.toml             # Project dependencies and configuration
+├── MCP_CLIENT_CONFIG.md       # MCP client configuration guide
+└── README.md                  # This file
+```
 
-- `duckdb-motherduck-initial-prompt`: A prompt to initialize a connection to DuckDB or MotherDuck and start working with it
+## 🚀 Quick Start
 
-### Tools
+### Prerequisites
 
-The server offers one tool:
+- Python 3.10 or higher
+- `uv` package manager (install with `pip install uv` or `brew install uv`)
 
-- `query`: Execute a SQL query on the DuckDB or MotherDuck database
-  - **Inputs**:
-    - `query` (string, required): The SQL query to execute
+### Option 1: Complete Setup (Recommended for MCP Clients)
 
-All interactions with both DuckDB and MotherDuck are done through writing SQL queries.
-
-## Command Line Parameters
-
-The MCP server supports the following parameters:
-
-| Parameter | Type | Default | Description                                                                                                                                                                                                                                                    |
-|-----------|------|---------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `--transport` | Choice | `stdio` | Transport type. Options: `stdio`, `sse`, `stream`                                                                                                                                                                                                              |
-| `--port` | Integer | `8000` | Port to listen on for sse and stream transport mode                                                                                                                                                                                                            |
-| `--db-path` | String | `md:` | Path to local DuckDB database file or MotherDuck database                                                                                                                                                                                                      |
-| `--motherduck-token` | String | `None` | Access token to use for MotherDuck database connections (uses `motherduck_token` env var by default)                                                                                                                                                           |
-| `--read-only` | Flag | `False` | Flag for connecting to DuckDB or MotherDuck in read-only mode. For DuckDB it uses short-lived connections to enable concurrent access                                                                                                                          |
-| `--home-dir` | String | `None` | Home directory for DuckDB (uses `HOME` env var by default)                                                                                                                                                                                                     |
-| `--saas-mode` | Flag | `False` | Flag for connecting to MotherDuck in [SaaS mode](https://motherduck.com/docs/key-tasks/authenticating-and-connecting-to-motherduck/authenticating-to-motherduck/#authentication-using-saas-mode). (disables filesystem and write permissions for local DuckDB) |
-| `--json-response` | Flag | `False` | Enable JSON responses for HTTP stream. Only supported for `stream` transport                                                                                                                                                                                   |
-
-### Quick Usage Examples
+Build the database and configure for MCP clients:
 
 ```bash
-# Connect to local DuckDB file in read-only mode with stream transport mode
-uvx mcp-server-motherduck --transport stream --db-path /path/to/local.db --read-only
+# Clone the repository
+git clone <repository-url>
+cd mcp-tarrifs
 
-# Connect to MotherDuck with token with stream transport mode
-uvx mcp-server-motherduck --transport stream --db-path md: --motherduck-token YOUR_TOKEN
+# Install dependencies
+uv sync
 
-# Connect to local DuckDB file in read-only mode with stream transport mode
-uvx mcp-server-motherduck --transport stream --db-path /path/to/local.db --read-only
+# Build database (one-time setup)
+python scripts/mcp_server_launcher.py --build-only
 
-# Connect to MotherDuck in SaaS mode for enhanced security with stream transport mode
-uvx mcp-server-motherduck --transport stream --db-path md: --motherduck-token YOUR_TOKEN --saas-mode
+# Get MCP client configuration
+cat MCP_CLIENT_CONFIG.md
 ```
 
-## Getting Started
+This will:
+- Download 11 years of USITC tariff data (2015-2025)
+- Extract and load data into DuckDB
+- Provide ready-to-use configuration for MCP clients
 
-### General Prerequisites
+⚠️ **Important**: For MCP clients, use the configurations in `MCP_CLIENT_CONFIG.md`, not the interactive scripts below.
 
-- `uv` installed, you can install it using `pip install uv` or `brew install uv`
+### Option 2: Interactive Development Mode
 
-If you plan to use the MCP with Claude Desktop or any other MCP comptabile client, the client need to be installed.
-
-### Prerequisites for DuckDB
-
-- No prerequisites. The MCP server can create an in-memory database on-the-fly
-- Or connect to an existing local DuckDB database file , or one stored on remote object storage (e.g., AWS S3).
-
-See [Connect to local DuckDB](#connect-to-local-duckdb).
-
-### Prerequisites for MotherDuck
-
-- Sign up for a [MotherDuck account](https://app.motherduck.com/?auth_flow=signup)
-- Generate an access token via the [MotherDuck UI](https://app.motherduck.com/settings/tokens?auth_flow=signup)
-- Store the token securely for use in the configuration
-
-### Usage with Cursor
-
-1. Install Cursor from [cursor.com/downloads](https://www.cursor.com/downloads) if you haven't already
-
-2. Open Cursor:
-
-- To set it up globally for the first time, go to Settings->MCP and click on "+ Add new global MCP server".
-- This will open a `mcp.json` file to which you add the following configuration:
-
-```json
-{
-  "mcpServers": {
-    "mcp-server-motherduck": {
-      "command": "uvx",
-      "args": [
-        "mcp-server-motherduck",
-        "--db-path",
-        "md:",
-        "--motherduck-token",
-        "<YOUR_MOTHERDUCK_TOKEN_HERE>"
-      ]
-    }
-  }
-}
-```
-
-### Usage with VS Code
-
-[![Install with UV in VS Code](https://img.shields.io/badge/VS_Code-Install_with_UV-0098FF?style=plastic)](https://insiders.vscode.dev/redirect/mcp/install?name=mcp-server-motherduck&config=%7B%22command%22%3A%22uvx%22%2C%22args%22%3A%5B%22mcp-server-motherduck%22%2C%22--db-path%22%2C%22md%3A%22%2C%22--motherduck-token%22%2C%22%24%7Binput%3Amotherduck_token%7D%22%5D%7D&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22motherduck_token%22%2C%22description%22%3A%22MotherDuck+Token%22%2C%22password%22%3Atrue%7D%5D) [![Install with UV in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install_with_UV-24bfa5?style=plastic&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=mcp-server-motherduck&config=%7B%22command%22%3A%22uvx%22%2C%22args%22%3A%5B%22mcp-server-motherduck%22%2C%22--db-path%22%2C%22md%3A%22%2C%22--motherduck-token%22%2C%22%24%7Binput%3Amotherduck_token%7D%22%5D%7D&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22motherduck_token%22%2C%22description%22%3A%22MotherDuck+Token%22%2C%22password%22%3Atrue%7D%5D&quality=insiders)
-
-For the quickest installation, click one of the "Install with UV" buttons at the top.
-
-#### Manual Installation
-
-Add the following JSON block to your User Settings (JSON) file in VS Code. You can do this by pressing `Ctrl + Shift + P` and typing `Preferences: Open User Settings (JSON)`.
-
-```json
-{
-  "mcp": {
-    "inputs": [
-      {
-        "type": "promptString",
-        "id": "motherduck_token",
-        "description": "MotherDuck Token",
-        "password": true
-      }
-    ],
-    "servers": {
-      "motherduck": {
-        "command": "uvx",
-        "args": [
-          "mcp-server-motherduck",
-          "--db-path",
-          "md:",
-          "--motherduck-token",
-          "${input:motherduck_token}"
-        ]
-      }
-    }
-  }
-}
-```
-
-Optionally, you can add it to a file called `.vscode/mcp.json` in your workspace. This will allow you to share the configuration with others.
-
-```json
-{
-  "inputs": [
-    {
-      "type": "promptString",
-      "id": "motherduck_token",
-      "description": "MotherDuck Token",
-      "password": true
-    }
-  ],
-  "servers": {
-    "motherduck": {
-      "command": "uvx",
-      "args": [
-        "mcp-server-motherduck",
-        "--db-path",
-        "md:",
-        "--motherduck-token",
-        "${input:motherduck_token}"
-      ]
-    }
-  }
-}
-```
-
-### Usage with Claude Desktop
-
-1. Install Claude Desktop from [claude.ai/download](https://claude.ai/download) if you haven't already
-
-2. Open the Claude Desktop configuration file:
-
-- To quickly access it or create it the first time, open the Claude Desktop app, select Settings, and click on the "Developer" tab, finally click on the "Edit Config" button.
-- Add the following configuration to your `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "mcp-server-motherduck": {
-      "command": "uvx",
-      "args": [
-        "mcp-server-motherduck",
-        "--db-path",
-        "md:",
-        "--motherduck-token",
-        "<YOUR_MOTHERDUCK_TOKEN_HERE>"
-      ]
-    }
-  }
-}
-```
-
-**Important Notes**:
-
-- Replace `YOUR_MOTHERDUCK_TOKEN_HERE` with your actual MotherDuck token
-
-### Usage with Claude Code
-
-Claude Code supports MCP servers through CLI commands or JSON configuration. Here are two ways to set it up:
-
-#### Option 1: Using CLI Commands
-
-Add the MotherDuck MCP server directly using the Claude Code CLI:
+For development and testing:
 
 ```bash
-claude mcp add mcp-server-motherduck uvx mcp-server-motherduck -- --db-path md: --motherduck-token <YOUR_MOTHERDUCK_TOKEN_HERE>
+# Build database and start interactive server
+python scripts/mcp_server_launcher.py
+
+# Or use the enhanced development server
+python start_enhanced_server.py
 ```
 
-#### Option 2: Using JSON Configuration
+### Option 3: Manual Database Building
 
-Add the server using a JSON configuration:
+If you need to rebuild or customize the database:
 
 ```bash
-claude mcp add-json mcp-server-motherduck '{
-  "command": "uvx",
+# Build database with specific options
+uv run python src/tariffs_db/db_build.py --all --years 11
+
+# Or build for specific years
+uv run python src/tariffs_db/db_build.py --years 5  # Last 5 years only
+```
+
+## 📊 Database Contents
+
+The processed database contains 10 tables with comprehensive tariff information:
+
+- **155,000+ rows** of tariff data across 11 years (2015-2025)
+- **Harmonized System (HS) codes** and descriptions
+- **Tariff rates** (General, Special, Column 2)
+- **Trade statistics** and classifications
+- **Annual snapshots** for trend analysis
+
+### Sample Table Structure
+
+Each year's data includes columns like:
+- `hts8`: 8-digit Harmonized Tariff Schedule codes
+- `brief_description`: Product description
+- `mfn_text_rate`: Most Favored Nation tariff rate
+- `general_rate_of_duty`: Standard tariff rate
+- `special_rate_of_duty`: Preferential rates
+- `column_2_rate_of_duty`: Alternative duty rates
+- `units_of_quantity`: Measurement units
+- `country`: Country-specific information
+
+## 🧩 Plugin Architecture
+
+The server features a modular plugin system for specialized functionality:
+
+### Tariff Plugin Features
+
+- **Smart Product Search**: Search by HTS codes or natural language descriptions
+- **Multi-year Comparisons**: Track tariff rate changes over time
+- **Country-specific Analysis**: Filter and compare rates by trading partner
+- **HTS Code Intelligence**: Understand product classification hierarchy
+- **Guided Analysis**: Built-in prompts for common tariff analysis patterns
+
+### Available Analysis Tools
+
+```python
+# Example tool usage through MCP clients
+get_tariff_rates(
+    product_search="automobiles",
+    country="china", 
+    year=2024
+)
+
+compare_tariff_rates(
+    product_code="8703.23.00",
+    years=[2020, 2021, 2022, 2023, 2024]
+)
+```
+
+## 🛠️ Available Scripts
+
+### `scripts/mcp_server_launcher.py`
+
+**Purpose**: MCP-compatible server launcher with automated database setup
+
+**Features**:
+- Automatic database building if needed
+- MCP STDIO-compatible output
+- DuckDB query logging setup
+- Read-only server mode by default
+- Creates and manages logs directory
+
+**Usage**:
+```bash
+# Build database and start MCP server (STDIO mode)
+python scripts/mcp_server_launcher.py
+
+# Only build database, don't start server
+python scripts/mcp_server_launcher.py --build-only
+
+# Disable automatic logging setup
+python scripts/mcp_server_launcher.py --no-logging
+```
+
+**Output**:
+- Database at: `data/usitc_data/usitc_trade_data.db`
+- Logs at: `logs/queries.log` and `logs/mcp_requests.log`
+- STDIO transport for MCP client communication
+
+### `start_enhanced_server.py`
+
+**Purpose**: Development server with enhanced logging and HTTP mode
+
+**Features**:
+- HTTP server mode for web clients
+- Enhanced request logging
+- Development-friendly output
+- Status monitoring
+
+**Usage**:
+```bash
+# Start development server
+python start_enhanced_server.py
+```
+
+**Note**: This script is for development only. Use `mcp_server_launcher.py` for MCP clients.
+
+## 🔧 MCP Server Tools
+
+The unified MCP server provides both core database tools and specialized tariff analysis capabilities:
+
+### Core Database Tools
+
+- **`list_tables`**: Show all available tariff tables
+- **`get_schema`**: Get column information for tables
+- **`get_sample_data`**: Preview table contents
+- **`query`**: Execute SQL queries on tariff data
+
+### Specialized Tariff Tools
+
+- **`get_tariff_rates`**: Get tariff rates for specific products by HTS code or description search
+  - Search by HTS code (e.g., `'0101.21.00'`)
+  - Search by product description (e.g., `'horses'`, `'automobiles'`)
+  - Filter by country and year
+  
+- **`compare_tariff_rates`**: Compare tariff rates across years or for different products
+  - Compare specific HTS codes across multiple years
+  - Analyze rate changes over time
+  - Compare rates for different countries
+
+### Tariff Analysis Prompts
+
+- **`tariff-analysis-guide`**: Comprehensive guide for analyzing tariff data and understanding trade patterns
+- **`hts-code-lookup`**: Help with HTS (Harmonized Tariff Schedule) code lookups and product classification
+
+### Example Queries
+
+Once the server is running, you can ask AI assistants questions like:
+
+- "Show me the tariff rates for steel products in 2024"
+- "Compare tariff rates between 2015 and 2024 for electronics"
+- "What are the most common tariff rates for agricultural products?"
+- "Find all products with special duty rates"
+- "Get tariff rates for HTS code 8703.23.00 across all years"
+- "Search for tariff rates on textile products"
+
+## 💻 Integration with MCP Clients
+
+⚠️ **Important**: Use the configurations in `MCP_CLIENT_CONFIG.md` for proper MCP client setup.
+
+The server uses STDIO transport for direct integration with MCP clients. **Do not use the development scripts** (`start_enhanced_server.py`) with MCP clients.
+
+### Quick Configuration Summary
+
+For MCP clients, use this pattern:
+
+```json
+{
+  "command": "uv",
   "args": [
-    "mcp-server-motherduck",
-    "--db-path",
-    "md:",
-    "--motherduck-token",
-    "<YOUR_MOTHERDUCK_TOKEN_HERE>"
+    "run",
+    "--project", "/path/to/mcp-tarrifs",
+    "python", "-m", "mcp_server",
+    "--db-path", "/path/to/mcp-tarrifs/data/usitc_data/usitc_trade_data.db",
+    "--read-only"
   ]
-}'
-```
-
-**Scoping Options**:
-- Use `--local` (default) for project-specific configuration
-- Use `--project` to share the configuration with your team via `.mcp.json`
-- Use `--user` to make the server available across all your projects
-
-**Important Notes**:
-- Replace `YOUR_MOTHERDUCK_TOKEN_HERE` with your actual MotherDuck token
-- Claude Code also supports environment variable expansion, so you can use `${MOTHERDUCK_TOKEN}` if you've set the environment variable
-
-## Securing your MCP Server when querying MotherDuck
-
-If the MCP server is exposed to third parties and should only have read access to data, we recommend using a read scaling token and running the MCP server in SaaS mode.
-
-**Read Scaling Tokens** are special access tokens that enable scalable read operations by allowing up to 4 concurrent read replicas, improving performance for multiple end users while *restricting write capabilities*.
-Refer to the [Read Scaling documentation](https://motherduck.com/docs/key-tasks/authenticating-and-connecting-to-motherduck/read-scaling/#creating-a-read-scaling-token) to learn how to create a read-scaling token.
-
-**SaaS Mode** in MotherDuck enhances security by restricting it's access to local files, databases, extensions, and configurations, making it ideal for third-party tools that require stricter environment protection. Learn more about it in the [SaaS Mode documentation](https://motherduck.com/docs/key-tasks/authenticating-and-connecting-to-motherduck/authenticating-to-motherduck/#authentication-using-saas-mode).
-
-**Secure Configuration**
-
-```json
-{
-  "mcpServers": {
-    "mcp-server-motherduck": {
-      "command": "uvx",
-      "args": [
-        "mcp-server-motherduck",
-        "--db-path",
-        "md:",
-        "--motherduck-token",
-        "<YOUR_READ_SCALING_TOKEN_HERE>",
-        "--saas-mode"
-      ]
-    }
-  }
 }
 ```
 
-## Connect to local DuckDB
+### Supported Clients
 
-To connect to a local DuckDB, instead of using the MotherDuck token, specify the path to your local DuckDB database file or use `:memory:` for an in-memory database.
+- **Claude Desktop**: Full configuration in `MCP_CLIENT_CONFIG.md`
+- **Cursor/VS Code**: MCP extension configuration included
+- **Perplexity**: JSON configuration provided
+- **Other MCP clients**: Use the STDIO transport pattern above
 
-In-memory database:
+### Configuration Files
 
-```json
-{
-  "mcpServers": {
-    "mcp-server-motherduck": {
-      "command": "uvx",
-      "args": [
-        "mcp-server-motherduck",
-        "--db-path",
-        ":memory:"
-      ]
-    }
-  }
-}
+- `MCP_CLIENT_CONFIG.md`: Complete setup instructions for all major MCP clients
+- Includes copy-paste ready configurations
+- Contains troubleshooting for common issues
+
+## 🗂️ Data Sources
+
+This project uses official USITC (United States International Trade Commission) tariff data:
+
+- **Source**: [USITC DataWeb](https://dataweb.usitc.gov/)
+- **Coverage**: 2015-2025 (11 years)
+- **Format**: Annual tariff databases in Excel and text formats
+- **Update Frequency**: Updated when new annual data is released
+
+## 🔍 Development
+
+### Project Components
+
+1. **Unified MCP Server** (`src/mcp_server/`):
+   - Plugin-based architecture for modular functionality
+   - Core database operations and SQL query capabilities
+   - Specialized tariff analysis tools and prompts
+
+2. **Tariff Plugin** (`src/mcp_server/plugins/tariffs/`):
+   - Tariff-specific tools (`get_tariff_rates`, `compare_tariff_rates`)
+   - HTS code analysis and product search capabilities
+   - Guided prompts for tariff analysis
+
+3. **Database Build Tools** (`src/tariffs_db/`):
+   - USITC data download and processing utilities
+   - Database schema creation and data loading
+   - Data validation and cleanup tools
+
+4. **Core Configuration** (`src/mcp_server/core/`):
+   - Server configuration and logging setup
+   - Database client management
+   - Reusable components for plugins
+
+### Plugin Architecture
+
+The server uses a plugin system for dataset-specific functionality:
+
+```python
+# Example plugin structure
+class TariffsPlugin(DatasetPlugin):
+    def get_specialized_tools(self) -> list[types.Tool]:
+        # Return tariff-specific tools
+    
+    def get_prompts(self) -> list[types.Prompt]:
+        # Return analysis guidance prompts
+    
+    async def handle_tool_call(self, name: str, arguments: dict, db_client):
+        # Handle tool execution
 ```
 
-Local DuckDB file:
-
-```json
-{
-  "mcpServers": {
-    "mcp-server-motherduck": {
-      "command": "uvx",
-      "args": [
-        "mcp-server-motherduck",
-        "--db-path",
-        "/path/to/your/local.db"
-      ]
-    }
-  }
-}
-```
-
-Local DuckDB file in [readonly mode](https://duckdb.org/docs/stable/connect/concurrency.html):
-
-```json
-{
-  "mcpServers": {
-    "mcp-server-motherduck": {
-      "command": "uvx",
-      "args": [
-        "mcp-server-motherduck",
-        "--db-path",
-        "/path/to/your/local.db",
-        "--read-only"
-      ]
-    }
-  }
-}
-```
-
-**Note**: readonly mode for local file-backed DuckDB connections also makes use of
-short lived connections. Each time the query MCP tool is used a temporary,
-reaodnly connection is created + query is executed + connection is closed. This
-feature was motivated by a workflow where [DBT](https://www.getdbt.com) was for
-modeling data within duckdb and then an MCP client (Windsurf/Cline/Claude/Cursor)
-was used for exploring the database. The short lived connections allow each tool
-to run and then release their connection, allowing the next tool to connect.
-
-## Example Queries
-
-Once configured, you can e.g. ask Claude to run queries like:
-
-- "Create a new database and table in MotherDuck"
-- "Query data from my local CSV file"
-- "Join data from my local DuckDB database with a table in MotherDuck"
-- "Analyze data stored in Amazon S3"
-
-## Running in SSE mode
-
-The server can run in SSE mode in two ways:
-
-### Direct SSE mode
-
-Run the server directly in SSE mode using the `--transport sse` flag:
+### Running Tests
 
 ```bash
-uvx mcp-server-motherduck --transport sse --port 8000 --db-path md: --motherduck-token <your_motherduck_token>
+# Test server functionality (requires database)
+uv run python -m pytest tests/
+
+# Test basic server startup
+python scripts/mcp_server_launcher.py --build-only
+
+# Test with development server
+python start_enhanced_server.py
 ```
 
-This will start the server listening on the specified port (default 8000) and you can point your clients directly to this endpoint.
+### Rebuilding Database
 
-### Using supergateway
-
-Alternatively, you can run SSE mode using `supergateway`:
+To rebuild the database from scratch:
 
 ```bash
-npx -y supergateway --stdio "uvx mcp-server-motherduck --db-path md: --motherduck-token <your_motherduck_token>"
+# Remove existing database
+rm data/usitc_data/usitc_trade_data.db
+
+# Rebuild with full dataset
+python scripts/mcp_server_launcher.py --build-only
+
+# Or rebuild manually with options
+uv run python src/tariffs_db/db_build.py --all --years 11
 ```
 
-Both methods allow you to point your clients such as Claude Desktop, Cursor to the SSE endpoint.
+## 📈 Performance
 
-## Development configuration
+- **Database Size**: ~55MB for 11 years of data
+- **Query Performance**: Sub-second response for most queries
+- **Memory Usage**: Minimal - DuckDB is highly efficient
+- **Concurrent Access**: Read-only mode supports multiple connections
 
-To run the server from a local development environment, use the following configuration:
+## 🤝 Contributing
 
-```json
- {
-  "mcpServers": {
-    "mcp-server-motherduck": {
-      "command": "uv",
-      "args": [
-        "--directory",
-        "/path/to/your/local/mcp-server-motherduck",
-        "run",
-        "mcp-server-motherduck",
-        "--db-path",
-        "md:",
-        "--motherduck-token",
-        "<YOUR_MOTHERDUCK_TOKEN_HERE>"
-      ]
-    }
-  }
-}
-```
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test with both scripts
+5. Submit a pull request
 
-## Troubleshooting
+## 📄 License
 
-- If you encounter connection issues, verify your MotherDuck token is correct
-- For local file access problems, ensure the `--home-dir` parameter is set correctly
-- Check that the `uvx` command is available in your PATH
-- If you encounter [`spawn uvx ENOENT`](https://github.com/motherduckdb/mcp-server-motherduck/issues/6) errors, try specifying the full path to `uvx` (output of `which uvx`)
-- In version previous for v0.4.0 we used environment variables, now we use parameters
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-## License
+## 🆘 Troubleshooting
 
-This MCP server is licensed under the MIT License. This means you are free to use, modify, and distribute the software, subject to the terms and conditions of the MIT License. For more details, please see the LICENSE file in the project repository.
+### Common Issues
+
+**"Database not found"**: Run `python scripts/mcp_server_launcher.py --build-only` to build the database
+
+**"Server not responding in MCP client"**: 
+- Check that you're using the configuration from `MCP_CLIENT_CONFIG.md`
+- Ensure the database path is correct in your MCP client configuration
+- Don't use `start_enhanced_server.py` with MCP clients
+
+**"Permission denied"**: Ensure you have write access to the `data/` and `logs/` directories
+
+**"Module not found"**: Run `uv sync` to install dependencies
+
+**"MCP client can't connect"**:
+- Verify the server command in your MCP client configuration
+- Check that the database file exists at the specified path
+- Use absolute paths in MCP client configurations
+
+### Getting Help
+
+1. Check the server startup logs when running `mcp_server_launcher.py`
+2. Review configurations in `MCP_CLIENT_CONFIG.md`
+3. Ensure all dependencies are installed with `uv sync`
+4. Check that the database file exists at `data/usitc_data/usitc_trade_data.db`
+5. For MCP client issues, verify STDIO transport is working correctly
+
+### Development vs Production
+
+- **For MCP Clients**: Use `scripts/mcp_server_launcher.py` with configurations from `MCP_CLIENT_CONFIG.md`
+- **For Development**: Use `start_enhanced_server.py` for HTTP mode and enhanced logging
+- **For Testing**: Both scripts support the same database but have different transport modes
+
+---
+
+**🎉 Happy Analyzing!** This project brings 11 years of US tariff data to your fingertips through the power of MCP and AI assistants.
